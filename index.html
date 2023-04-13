@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Convert UpWork CSV Transactions to Freeagent Format</title>
+  </head>
+  <body>
+    <h1>Upload and Modify UpWork CSV</h1>
+    <input type="file" id="csv_file" accept=".csv">
+    <button onclick="parseCSV()">Parse</button>
+    <br><br>
+    <table id="parsed_table"></table>
+    <br>
+    <button onclick="downloadCSV()">Download FreeAgent CSV</button>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.1/papaparse.min.js"></script>
+    <script>
+      let data = [];
+      let headers = [];
+
+      function parseCSV() {
+        const fileInput = document.getElementById("csv_file");
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.readAsText(file);
+        reader.onload = function() {
+          Papa.parse(reader.result, {
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+              headers = results.meta.fields.filter(header => {
+                return (header.toLowerCase() === "date" || 
+                        header.toLowerCase() === "amount" || 
+                        header.toLowerCase() === "description");
+              })
+              data = results.data.map(row => {
+                const newRow = {};
+                headers.forEach(header => {
+                    if (header.toLowerCase() === "date") {
+                      const momentDate = moment(row[header], "MMM/DD/YYYY");
+                      newRow[header] = momentDate.format("DD/MM/YYYY");
+                    } else {
+                      newRow[header] = row[header];
+                    }
+                  });
+                  return newRow;
+              });
+              const table = document.getElementById("parsed_table");
+              const headerRow = table.insertRow();
+              headers.forEach(header => {
+                const cell = headerRow.insertCell();
+                cell.innerHTML = header;
+              });
+              data.forEach(row => {
+                const tableRow = table.insertRow();
+                headers.forEach(header => {
+                  const cell = tableRow.insertCell();
+                  cell.innerHTML = row[header];
+                });
+              });
+            }
+          });
+        };
+      }
+
+      function downloadCSV() {
+        const csvContent = Papa.unparse(data, {fields: headers, header: false});
+        const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'modified_data.csv';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    </script>
+  </body>
+</html>
